@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RikeshAI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js/+esm",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+                "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.3/modules/talkinghead.mjs"
+            }
+        }
+    </script>
+    <style>
+        /* Glassmorphism Base Style */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+        }
+
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .draggable {
+            cursor: grab;
+        }
+
+        .hidden-camera {
+            transform: scale(0);
+            opacity: 0;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+
+        /* Chat Container */
+        .chat-container {
+            width: 100%;
+            max-width: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            display: none;
+            position: absolute;
+            left: 10px;
+            bottom: 80px;
+        }
+
+        .chat-message {
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 8px;
+            word-wrap: break-word;
+            color: #fff;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .user-message {
+            text-align: right;
+        }
+
+        .kimi-message {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #fff;
+        }
+
+        /* Animation Dropdown */
+        .animation-dropdown {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+        }
+
+        /* Recording and Vision */
+        .recording-status,
+        .vision-response {
+            position: absolute;
+            padding: 5px 15px;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .recording-status {
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .vision-response {
+            bottom: 60px;
+            right: 10px;
+            max-width: 300px;
+        }
+
+        /* Loading Animation */
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 8px solid #fff;
+            border-top: 8px solid #ff5555;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Copyright */
+        .copyright {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .copyright a {
+            color: #ff5555;
+            text-decoration: none;
+        }
+
+        .copyright a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .chat-container {
+                max-width: 90%;
+                max-height: 60vh;
+                bottom: 60px;
+                left: 5px;
+                right: 5px;
+            }
+
+            .vision-response {
+                bottom: 120px;
+                right: 5px;
+                max-width: 90%;
+                font-size: 14px;
+            }
+
+            .absolute {
+                position: relative;
+            }
+
+            .bottom-4 {
+                bottom: 10px;
+            }
+
+            .left-4 {
+                left: 10px;
+            }
+
+            .w-32 {
+                width: 100px;
+            }
+
+            .h-32 {
+                height: 100px;
+            }
+
+            .flex.space-x-4 {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .animation-dropdown {
+                top: 60px;
+                width: 90%;
+                max-width: 300px;
+            }
+
+            .glass-button {
+                padding: 6px;
+            }
+
+            .loader {
+                width: 50px;
+                height: 50px;
+                border-width: 6px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .chat-container {
+                padding: 10px;
+            }
+
+            .vision-response {
+                bottom: 100px;
+                padding: 8px;
+            }
+
+            .glass-button {
+                padding: 5px;
+            }
+
+            .chat-message {
+                font-size: 12px;
+            }
+
+            .loader {
+                width: 40px;
+                height: 40px;
+                border-width: 5px;
+            }
+
+            .copyright {
+                font-size: 10px;
+            }
+        }
+    </style>
+    <script>
+        function toggleSendButton() {
+            const input = document.getElementById("userInput");
+            const btn = document.getElementById("sendMessageBtn");
+            btn.classList.toggle("opacity-50", !input.value.trim());
+            btn.classList.toggle("pointer-events-none", !input.value.trim());
+        }
+    </script>
+</head>
+
+<body class="bg-red-800 text-white flex items-center justify-center h-screen p-4">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+        <div class="loader"></div>
+    </div>
+
+    <div class="relative w-full h-full max-w-5xl max-h-5xl glass-effect shadow-lg overflow-hidden">
+        <div id="avatar" class="w-full h-full"></div>
+
+        <div id="videoContainer"
+            class="absolute bottom-4 right-4 w-32 h-32 glass-effect rounded-lg shadow-md draggable hidden-camera">
+            <video id="userVideo" class="w-full h-full object-cover rounded-lg" autoplay></video>
+        </div>
+
+        <div class="absolute top-2 right-2 flex space-x-4">
+            <button id="endaBtn" class="glass-button" onclick="window.open('', '_self', ''); window.close();">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="absolute top-2 left-2 flex space-x-4">
+            <button id="toggleCameraBtn" class="glass-button">
+                <i class="fas fa-video-slash"></i>
+            </button>
+        </div>
+        <div class="absolute top-2 left-1/2 transform -translate-x-1/2 flex space-x-4">
+            <button id="animationToggleBtn" class="glass-button">
+                <i class="fas fa-user"></i>
+            </button>
+        </div>
+        <div id="animationDropdown" class="animation-dropdown glass-effect">
+            <input id="animationUrl" class="glass-effect p-2 text-black rounded w-full" placeholder="Animation URL">
+            <button id="playAnimationBtn" class="glass-button round-full">
+                <i class="fas fa-play"></i> Play
+            </button>
+        </div>
+        <div class="absolute bottom-4 left-4 flex space-x-4 flex-wrap">
+            <button id="micToggleBtn" class="glass-button">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button id="chatToggleBtn" class="glass-button">
+                <i class="fas fa-comment"></i>
+            </button>
+            <button id="stopSpeakingBtn" class="glass-button">
+                <i class="fas fa-hand"></i>
+            </button>
+            <button id="moodBtn" class="glass-button">
+                <i class="fas fa-smile"></i>
+            </button>
+            <button id="GestureBtn" class="glass-button">
+                <i class="fas fa-play"></i>
+            </button>
+        </div>
+        <div class="absolute bottom-4 right-4 flex space-x-4">
+            <button id="soundToggleBtn" class="glass-button">
+                <i class="fas fa-volume-up"></i>
+            </button>
+        </div>
+
+        <div id="chatContainer" class="chat-container glass-effect draggable">
+            <div class="chat-header">
+                <span>Chat History</span>
+                <button id="clearChatBtn" title="Clear Chat"><i class="fas fa-trash"></i></button>
+            </div>
+            <div id="chatMessages"></div>
+            <div id="userInputContainer" class="flex space-x-2 mt-2 hidden">
+                <input type="text" id="userInput" class="glass-effect w-full p-2 text-black rounded"
+                    placeholder="Type here..." oninput="toggleSendButton()">
+                <button id="sendMessageBtn" class="glass-button opacity-50 pointer-events-none">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+                <button id="captureBtn" class="glass-button">
+                    <i class="fas fa-camera"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="recording-status glass-effect hidden">
+            <div id="is_recording">Recording: False</div>
+            <div id="recognized_text">Text: </div>
+        </div>
+        <div class="vision-response glass-effect hidden">
+            <div id="responseText">Vision: Waiting for analysis...</div>
+        </div>
+
+        <!-- Copyright Notice -->
+        <div class="copyright">
+            &copy; 2025 <a href="https://rikeshdahal.com.np" target="_blank">Rikesh Dahal</a>. All rights reserved.
+        </div>
+    </div>
+
+    <script type="module">
+        import { TalkingHead } from "talkinghead";
+        let head, micEnabled = false, soundEnabled = true, chatVisible = false, currentStream, currentCamera = 0, chatHistory = [], recognition, isSpeaking = false, lastVisionResult = "";
+        let captureAndAnalyze;
+        let hasPlayedHello = false;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Show loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            const nodeAvatar = document.getElementById('avatar');
+            head = new TalkingHead(nodeAvatar, {
+                ttsEndpoint: "https://eu-texttospeech.googleapis.com/v1beta1/text:synthesize",
+                ttsApikey: "AIzaSyDKnQEdeUyNeFMQciUkHDuX4AbeplQyuWg",
+                lipsyncModules: ["en"],
+                cameraView: "upper"
+            });
+
+            await head.showAvatar({
+                url: 'https://models.readyplayer.me/64bfa15f0e72c63d7c3934a6.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png',
+                body: 'F', avatarMood: 'neutral', ttsLang: "en-GB", ttsVoice: "en-GB-Standard-A", lipsyncLang: 'en'
+            });
+
+            // Hide loading overlay after avatar is loaded
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => loadingOverlay.style.display = 'none', 500);
+
+            document.getElementById("micToggleBtn").addEventListener("click", toggleMic);
+            document.getElementById("soundToggleBtn").addEventListener("click", toggleSound);
+            document.getElementById("sendMessageBtn").addEventListener("click", sendMessage);
+            document.getElementById("toggleCameraBtn").addEventListener("click", toggleCamera);
+            document.getElementById("chatToggleBtn").addEventListener("click", toggleChat);
+            document.getElementById("clearChatBtn").addEventListener("click", clearChatHistory);
+            document.getElementById("stopSpeakingBtn").addEventListener("click", stopSpeaking);
+            document.getElementById("captureBtn").addEventListener("click", () => captureAndAnalyze());
+            document.getElementById("playAnimationBtn").addEventListener("click", playAnimationHandler);
+            document.getElementById("moodBtn").addEventListener("click", cycleMood);
+            document.getElementById("GestureBtn").addEventListener("click", cycleGesture);
+            document.getElementById("animationToggleBtn").addEventListener("click", toggleAnimationDropdown);
+
+            startUserVideo();
+            makeDraggable(document.getElementById("videoContainer"));
+            makeDraggable(document.getElementById("chatContainer"));
+            loadChatHistory();
+            setupSpeechRecognition();
+            initializeVisionSystem();
+        });
+
+        // Mood Cycling
+        const moods = ["neutral", "happy", "sad", "angry", "Sleep", "Fear", "disgust", "love"];
+        let currentMoodIndex = 0;
+        function cycleMood() {
+            currentMoodIndex = (currentMoodIndex + 1) % moods.length;
+            head.setMood(moods[currentMoodIndex]);
+            console.log(`Mood changed to ${moods[currentMoodIndex]}`);
+        }
+
+        // Gesture Cycling
+        const gestures = ["handup", "index", "ok", "thumbup", "thumbdown", "side", "shrug", "yes"];
+        let currentGestureIndex = 0;
+        function cycleGesture() {
+            const gesture = gestures[currentGestureIndex];
+            const mirror = currentGestureIndex % 2 === 1;
+            try {
+                head.playGesture(gesture, 3, mirror, 1000);
+                console.log(`Playing gesture: ${gesture} ${mirror ? "(right hand)" : "(left hand)"}`);
+            } catch (err) {
+                console.error("Gesture error:", err);
+            }
+            currentGestureIndex = (currentGestureIndex + 1) % gestures.length;
+        }
+
+        // Animation Handler
+        function playAnimationHandler() {
+            const animationUrl = document.getElementById("animationUrl").value || "https://met4citizen.github.io/TalkingHead/animations/walking.fbx";
+            head.playAnimation(animationUrl, null, 10, 0, 0.01)
+                .then(() => console.log("Animation finished"))
+                .catch(err => console.error("Animation error:", err));
+        }
+
+        // Toggle Animation Dropdown
+        function toggleAnimationDropdown() {
+            const dropdown = document.getElementById("animationDropdown");
+            dropdown.style.display = dropdown.style.display === "flex" ? "none" : "flex";
+        }
+
+        function toggleMic() {
+            micEnabled = !micEnabled;
+            document.getElementById("micToggleBtn").innerHTML = micEnabled ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
+            if (micEnabled && !isSpeaking && recognition) {
+                recognition.start();
+                document.getElementById("is_recording").innerHTML = "Recording: True";
+            } else if (recognition) {
+                recognition.stop();
+                document.getElementById("is_recording").innerHTML = "Recording: False";
+                document.getElementById("recognized_text").innerHTML = "Text: ";
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById("soundToggleBtn").innerHTML = soundEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
+            head.setMute(!soundEnabled);
+        }
+
+        function toggleChat() {
+            chatVisible = !chatVisible;
+            const chatContainer = document.getElementById("chatContainer");
+            const userInputContainer = document.getElementById("userInputContainer");
+            chatContainer.style.display = chatVisible ? "block" : "none";
+            userInputContainer.classList.toggle("hidden", !chatVisible);
+        }
+
+        function stopSpeaking() {
+            head.stopSpeaking();
+            isSpeaking = false;
+            if (micEnabled && recognition) {
+                recognition.start();
+                document.getElementById("is_recording").innerHTML = "Recording: True";
+            }
+        }
+
+        // Common Functions
+        function openGoogle() {
+            window.open("https://www.google.com", "_blank");
+            const response = "Opening Google for you, my love!";
+            addToChatHistory("kimi", response);
+            if (soundEnabled) speakResponse(response);
+        }
+
+        function openNotepad() {
+            // Note: This is a placeholder; actual app launching requires desktop integration
+            alert("This would open Notepad in a desktop environment!");
+            const response = "Opening Notepad for you, darling!";
+            addToChatHistory("kimi", response);
+            if (soundEnabled) speakResponse(response);
+        }
+
+        function tellTime() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = now.getMinutes();
+            const ampm = hours >= 12 ? "pm" : "am";
+            hours = hours % 12 || 12; // Convert to 12-hour format
+            const minuteWords = [
+                "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+                "twenty", "twenty-one", "twenty-two", "twenty-three", "twenty-four", "twenty-five", "twenty-six",
+                "twenty-seven", "twenty-eight", "twenty-nine", "thirty", "thirty-one", "thirty-two", "thirty-three",
+                "thirty-four", "thirty-five", "thirty-six", "thirty-seven", "thirty-eight", "thirty-nine", "forty",
+                "forty-one", "forty-two", "forty-three", "forty-four", "forty-five", "forty-six", "forty-seven",
+                "forty-eight", "forty-nine", "fifty", "fifty-one", "fifty-two", "fifty-three", "fifty-four",
+                "fifty-five", "fifty-six", "fifty-seven", "fifty-eight", "fifty-nine"
+            ];
+            const timeString = `The time is ${hours} ${minuteWords[minutes]} ${ampm}`;
+            addToChatHistory("kimi", timeString);
+            if (soundEnabled) speakResponse(timeString);
+        }
+
+        async function speakResponse(text) {
+            isSpeaking = true;
+            if (recognition) recognition.stop();
+            await head.speakText(text);
+            isSpeaking = false;
+            if (micEnabled && recognition) recognition.start();
+        }
+
+
+        async function processCommand(command, source = "unknown") {
+                // console.log(`${source} command:`, command); // Debug: Track source (text/voice)
+                addToChatHistory("user", command);
+
+                if (command.toLowerCase().includes("hello") && !hasPlayedHello) {
+                    const helloAnimationUrl = "https://rikeshdahal.github.io/KIMI-AI/hello.fbx";
+                    head.playAnimation(helloAnimationUrl, null, 10, 0, 0.01)
+                        .then(() => {
+                            console.log("Hello animation finished");
+                            hasPlayedHello = true;
+                        })
+                        .catch(err => console.error("Hello animation error:", err));
+                }
+                if (command.toLowerCase().includes("open google")) {
+                    openGoogle();
+                } else if (command.toLowerCase().includes("please dance")) {
+                    const animationUrl="https://rikeshdahal.github.io/KIMI-AI/F_Dances_001.fbx";
+                    head.playAnimation(animationUrl);
+                    speakResponse("ok My love this is only for you Beby") 
+                } else if (command.toLowerCase().includes("open notepad")) {
+                    openNotepad();
+                } else if (command.toLowerCase().includes("what time is it") || command.toLowerCase().includes("tell me the time")) {
+                    tellTime();
+                } else if (command.toLowerCase().includes("what is in my hand")) {
+                    console.log("Triggering vision analysis for 'What is in my hand?'"); // Debug
+                    document.getElementById("userInput").value = "What is in my hand?"; // Set for captureAndAnalyze
+                    await captureAndAnalyze(); // Trigger vision system
+                } else {
+                    let aiResponse = await getKimiResponse(command);
+                    // console.log("AI Response:", aiResponse); // Debug
+                    addToChatHistory("kimi", aiResponse);
+                    if (soundEnabled) speakResponse(aiResponse);
+                }
+            }
+
+            async function sendMessage() {
+                const input = document.getElementById("userInput").value;
+                if (input.trim() !== "") {
+                    await processCommand(input, "Text"); // Call unified function
+                    document.getElementById("userInput").value = ""; // Clear input after processing
+                } else {
+                    console.log("Empty text input, ignoring."); // Debug
+                }
+            }
+
+        async function getKimiResponse(text) {
+            const apiKey = "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";
+            const url = "https://api.groq.com/openai/v1/chat/completions";
+            const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
+            const visionContext = lastVisionResult ? `Based on recent vision analysis: ${lastVisionResult}\n\n` : "";
+            const body = JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: `Your name is KIMI AI, a 19-year-old girl from Nepal. You are a helpful AI assistant created by Rikesh Dahal and always respond in a loving and romantic style. ${visionContext}` },
+                    { role: "user", content: text }
+                ],
+                temperature: 1,
+                max_tokens: 1024,
+                top_p: 1,
+                stream: false
+            });
+
+            try {
+                const response = await fetch(url, { method: "POST", headers, body });
+                const result = await response.json();
+                return result.choices && result.choices.length > 0 ? result.choices[0].message.content : "Sorry, no response received.";
+            } catch (error) {
+                console.error("Error fetching Groq API:", error);
+                return "Error getting response from AI.";
+            }
+        }
+
+        async function startUserVideo() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            if (videoDevices.length > 0) {
+                currentCamera = currentCamera % videoDevices.length;
+                navigator.mediaDevices.getUserMedia({ video: { deviceId: videoDevices[currentCamera].deviceId } })
+                    .then(stream => {
+                        if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+                        currentStream = stream;
+                        document.getElementById("userVideo").srcObject = stream;
+                    }).catch(error => console.error("Error accessing webcam:", error));
+            }
+        }
+
+        function toggleCamera() {
+            const videoContainer = document.getElementById("videoContainer");
+            const toggleBtn = document.getElementById("toggleCameraBtn");
+            videoContainer.classList.toggle("hidden-camera");
+            toggleBtn.innerHTML = videoContainer.classList.contains("hidden-camera") ? '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
+        }
+
+        function makeDraggable(element) {
+            let offsetX, offsetY, isDragging = false;
+            element.style.position = "absolute";
+            element.addEventListener("mousedown", (e) => {
+                isDragging = true;
+                offsetX = e.clientX - element.offsetLeft;
+                offsetY = e.clientY - element.offsetTop;
+                element.style.cursor = "grabbing";
+            });
+            document.addEventListener("mousemove", (e) => {
+                if (isDragging) {
+                    let newX = e.clientX - offsetX;
+                    let newY = e.clientY - offsetY;
+                    newX = Math.max(0, Math.min(window.innerWidth - element.offsetWidth, newX));
+                    newY = Math.max(0, Math.min(window.innerHeight - element.offsetHeight, newY));
+                    element.style.left = `${newX}px`;
+                    element.style.top = `${newY}px`;
+                }
+            });
+            document.addEventListener("mouseup", () => {
+                isDragging = false;
+                element.style.cursor = "grab";
+            });
+        }
+
+        function addToChatHistory(sender, message) {
+            chatHistory.push({ sender, message });
+            saveChatHistory();
+            updateChatDisplay();
+        }
+
+        function updateChatDisplay() {
+            const chatMessages = document.getElementById("chatMessages");
+            chatMessages.innerHTML = "";
+            chatHistory.forEach(({ sender, message }) => {
+                const div = document.createElement("div");
+                div.classList.add("chat-message", sender === "user" ? "user-message" : "kimi-message");
+                div.textContent = message;
+                chatMessages.appendChild(div);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function saveChatHistory() {
+            document.cookie = `chatHistory=${JSON.stringify(chatHistory)}; path=/; max-age=86400`;
+        }
+
+        function loadChatHistory() {
+            const cookies = document.cookie.split(";").map(cookie => cookie.trim());
+            const chatCookie = cookies.find(cookie => cookie.startsWith("chatHistory="));
+            if (chatCookie) {
+                chatHistory = JSON.parse(chatCookie.split("=")[1]);
+                updateChatDisplay();
+            }
+        }
+
+        function clearChatHistory() {
+            chatHistory = [];
+            saveChatHistory();
+            updateChatDisplay();
+        }
+
+        function setupSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window)) {
+                console.warn("Speech Recognition API not supported.");
+                return;
+            }
+
+            recognition = new webkitSpeechRecognition();
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            let listeningForHotword = true;
+            const hotwords = ["kimi", "hey kimi", "jarvis", "kimmy"];
+            const detectionSound = new Audio('detection-sound.mp3');
+
+            recognition.onresult = async (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('')
+                    .toLowerCase();
+                document.getElementById("recognized_text").innerHTML = `Text: ${transcript}`;
+                // console.log("Voice transcript:", transcript); // Debug
+
+                if (listeningForHotword) {
+                    const detectedHotword = hotwords.find(hotword => transcript.includes(hotword));
+                    if (detectedHotword && event.results[0].isFinal) {
+                        listeningForHotword = false;
+                        document.getElementById("recognized_text").innerHTML = `Text: Hotword "${detectedHotword}" detected, listening for command...`;
+                        detectionSound.play().catch(error => console.error("Error playing sound:", error));
+                        recognition.stop();
+                        setTimeout(() => recognition.start(), 500);
+                    }
+                } else if (event.results[0].isFinal && micEnabled && !isSpeaking) {
+                    const command = transcript;
+                    await processCommand(command, "Voice"); // Call unified function
+                    document.getElementById("recognized_text").innerHTML = "Text: ";
+                    listeningForHotword = true;
+                } else if (chatVisible) {
+                    document.getElementById("userInput").value = transcript;
+                }
+            };
+
+            recognition.onend = () => {
+                if (listeningForHotword && micEnabled && !isSpeaking) {
+                    setTimeout(() => recognition.start(), 500);
+                }
+            };
+
+            recognition.onstart = () => {
+                if (isSpeaking) recognition.stop();
+            };
+        }
+        function initializeVisionSystem() {
+            const video = document.getElementById('userVideo');
+            const canvas = document.createElement('canvas');
+            canvas.style.display = 'none';
+            document.body.appendChild(canvas);
+            const responseText = document.getElementById('responseText');
+            const context = canvas.getContext('2d');
+            const apiKey = 'AIzaSyAY4c_mp20hKDh1SAwDhsad4plD9AxRZVM';
+            const apiEndpoint = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
+
+            captureAndAnalyze = async () => {
+                const prompt = document.getElementById('userInput').value || "What do you see?";
+                document.getElementById("captureBtn").disabled = true;
+                responseText.textContent = 'Vision: Analyzing...';
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0);
+                const imageBase64 = canvas.toDataURL('image/jpeg').split(',')[1];
+
+                try {
+                    const response = await fetch(`${apiEndpoint}?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    { text: prompt },
+                                    { inline_data: { mime_type: 'image/jpeg', data: imageBase64 } }
+                                ]
+                            }]
+                        })
+                    });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+                    lastVisionResult = data.candidates[0].content.parts[0].text;
+                    responseText.textContent = `Vision: ${lastVisionResult}`;
+                    addToChatHistory("user", prompt);
+                    const aiResponse = await getKimiResponse(`I just analyzed an image: ${lastVisionResult}. How would you respond to "${prompt}"?`);
+                    addToChatHistory("kimi", aiResponse);
+                    if (soundEnabled) {
+                        isSpeaking = true;
+                        if (recognition) recognition.stop();
+                        await head.speakText(aiResponse);
+                        isSpeaking = false;
+                        if (micEnabled && recognition) recognition.start();
+                    }
+                } catch (error) {
+                    console.error('Gemini API error:', error);
+                    responseText.textContent = `Vision: Error: ${error.message}`;
+                }
+                document.getElementById("captureBtn").disabled = false;
+            };
+        }
+    </script>
+</body>
+
+</html>
